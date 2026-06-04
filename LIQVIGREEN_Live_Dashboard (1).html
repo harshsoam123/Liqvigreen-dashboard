@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LIQVIGREEN – Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#07100d;--surface:#0e1a14;--card:#121f18;--border:#1b2d22;
+  --green:#2ddb76;--green-dim:#1aad5c;--amber:#f5c518;--red:#ff5f5f;
+  --blue:#4fc3f7;--text:#dff0e8;--muted:#5e8a6e;--radius:14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px;transition:opacity .5s}
+#loader.hidden{opacity:0;pointer-events:none}
+.loader-ring{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-family:'Syne',sans-serif;font-size:14px;color:var(--muted)}
+
+/* HEADER */
+header{position:sticky;top:0;z-index:200;background:rgba(14,26,20,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:14px 32px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#2ddb76,#0a5c30);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:#fff}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:17px}
+.logo-text em{color:var(--green);font-style:normal}
+.header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live-pill{display:flex;align-items:center;gap:6px;background:rgba(45,219,118,.1);border:1px solid rgba(45,219,118,.25);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--green);font-weight:600}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-time{font-size:11px;color:var(--muted)}
+.btn{border:none;border-radius:8px;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-outline{background:var(--card);border:1px solid var(--border);color:var(--green)}
+.btn-outline:hover{background:var(--green);color:#051208;border-color:var(--green)}
+.btn-solid{background:var(--green);color:#051208}
+.btn-solid:hover{opacity:.85}
+
+/* ERROR */
+#errorBox{display:none;margin:20px 32px;background:rgba(255,95,95,.07);border:1px solid rgba(255,95,95,.3);border-radius:10px;padding:16px 20px;color:var(--red);font-size:13px;line-height:1.6}
+
+/* MAIN */
+.main{padding:24px 32px;display:flex;flex-direction:column;gap:22px}
+
+/* TABS */
+.tabs-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tabs-label{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.mtab{padding:5px 15px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:var(--border);color:var(--muted);border:none;font-family:'DM Sans',sans-serif;transition:all .2s}
+.mtab.active{background:var(--green);color:#051208}
+.mtab:hover:not(.active){background:#243b2e;color:var(--text)}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi:hover{transform:translateY(-3px);border-color:rgba(45,219,118,.3)}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.kpi.g::after{background:linear-gradient(90deg,var(--green),var(--green-dim))}
+.kpi.r::after{background:linear-gradient(90deg,var(--red),#c0392b)}
+.kpi.a::after{background:linear-gradient(90deg,var(--amber),#d4a017)}
+.kpi.b::after{background:linear-gradient(90deg,var(--blue),#0288d1)}
+.kpi.p::after{background:linear-gradient(90deg,#a78bfa,#7c3aed)}
+.kpi-icon{font-size:18px;margin-bottom:8px}
+.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+.kpi-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;line-height:1}
+.kpi.g .kpi-val{color:var(--green)}
+.kpi.r .kpi-val{color:var(--red)}
+.kpi.a .kpi-val{color:var(--amber)}
+.kpi.b .kpi-val{color:var(--blue)}
+.kpi.p .kpi-val{color:#a78bfa}
+.kpi-sub{margin-top:6px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.badge{display:inline-flex;align-items:center;gap:2px;border-radius:20px;padding:2px 7px;font-size:10px;font-weight:600}
+.up{background:rgba(45,219,118,.12);color:var(--green)}
+.dn{background:rgba(255,95,95,.12);color:var(--red)}
+
+/* CHARTS */
+.row2{display:grid;grid-template-columns:1.7fr 1fr;gap:14px}
+.row3{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px}
+.card-title{font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:3px}
+.card-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+
+/* DONUT */
+.donut-wrap{display:flex;flex-direction:column;align-items:center}
+.donut-center{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.donut-inner{position:absolute;text-align:center;pointer-events:none}
+.donut-pct{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--green)}
+.donut-tag{font-size:9px;color:var(--muted);margin-top:1px}
+.legend{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;justify-content:center}
+.leg{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)}
+.leg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* EXPENSE TABLE */
+.exp-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.exp-tbl th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);padding-bottom:9px}
+.exp-tbl th:last-child{text-align:right}
+.exp-tbl td{padding:8px 0;border-top:1px solid var(--border);vertical-align:middle}
+.exp-tbl td:last-child{text-align:right;font-family:'Syne',sans-serif;font-weight:600;font-size:12px}
+.bar-bg{background:var(--border);border-radius:3px;height:4px;width:70px;overflow:hidden;display:inline-block;vertical-align:middle;margin:0 6px}
+.bar-fg{height:100%;border-radius:3px}
+
+/* P&L */
+.pl-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border)}
+.pl-row:last-child{border-bottom:none;padding-top:14px}
+.pl-lbl{font-size:13px;color:var(--muted)}
+.pl-val{font-family:'Syne',sans-serif;font-weight:700;font-size:14px}
+.pl-total .pl-lbl{color:var(--text);font-weight:600}
+.pl-total .pl-val{font-size:18px;color:var(--green)}
+
+/* RING */
+.ring-area{display:flex;flex-direction:column;align-items:center;padding:10px 0 6px}
+.ring-box{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.ring-inner{position:absolute;text-align:center}
+.ring-pct{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--green);line-height:1}
+.ring-lbl{font-size:9px;color:var(--muted);margin-top:2px}
+
+/* OIL STAT */
+.oil-stat{display:flex;align-items:center;justify-content:space-between;background:rgba(79,195,247,.05);border:1px solid rgba(79,195,247,.15);border-radius:10px;padding:12px 16px;margin-bottom:14px}
+.oil-lbl{font-size:12px;color:var(--muted)}
+.oil-val{font-family:'Syne',sans-serif;font-weight:700;color:var(--blue);font-size:16px}
+
+/* LINE */
+.line-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px}
+
+/* FOOTER */
+footer{padding:14px 32px;text-align:center;font-size:11px;color:var(--muted);border-top:1px solid var(--border)}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.kpi{animation:fadeUp .45s both}
+.card{animation:fadeUp .45s .15s both}
+
+@media(max-width:1000px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:750px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.row2,.row3{grid-template-columns:1fr}.main{padding:14px}.header{padding:12px 14px}}
+@media print{.btn,.live-pill{display:none}}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Google Sheets se live data aa raha hai…</div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">LG</div>
+    <div class="logo-text">LIQVI<em>GREEN</em> <span style="font-size:11px;color:var(--muted);font-weight:400;font-family:'DM Sans'">Profit Dashboard</span></div>
+  </div>
+  <div class="header-right">
+    <div class="live-pill"><span class="live-dot"></span>LIVE – Google Sheets</div>
+    <span class="sync-time" id="syncTime">—</span>
+    <button class="btn btn-outline" onclick="loadData()">⟳ Refresh</button>
+    <button class="btn btn-solid" onclick="window.print()">⬇ Export PDF</button>
+  </div>
+</header>
+
+<div id="errorBox"></div>
+
+<div class="main" id="main" style="display:none">
+
+  <!-- MONTH TABS -->
+  <div class="tabs-row">
+    <span class="tabs-label">Month →</span>
+    <div id="tabs"></div>
+  </div>
+
+  <!-- KPI ROW -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="row2">
+    <div class="card">
+      <div class="card-title">Revenue vs Total Expenses</div>
+      <div class="card-sub">Monthly comparison — Gross Sale aur Total Kharcha</div>
+      <canvas id="barChart" height="200"></canvas>
+    </div>
+    <div class="card donut-wrap">
+      <div class="card-title" style="align-self:flex-start">Expense Breakdown</div>
+      <div class="card-sub" style="align-self:flex-start">Active month — category-wise split</div>
+      <div class="donut-center">
+        <canvas id="donutChart" width="190" height="190"></canvas>
+        <div class="donut-inner">
+          <div class="donut-pct" id="donutPct">—</div>
+          <div class="donut-tag">Expense %</div>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="row3">
+    <!-- Expense table -->
+    <div class="card">
+      <div class="card-title">Kharcha Detail</div>
+      <div class="card-sub" id="expCardSub">Active month — category-wise amounts</div>
+      <table class="exp-tbl">
+        <thead><tr><th>Category</th><th>Amount</th><th>Share</th></tr></thead>
+        <tbody id="expBody"></tbody>
+      </table>
+    </div>
+
+    <!-- P&L + Ring -->
+    <div class="card">
+      <div class="card-title">Profit & Loss — Asli Bachat</div>
+      <div class="card-sub">Active month summary</div>
+      <div class="ring-area">
+        <div class="ring-box">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="48" fill="none" stroke="var(--border)" stroke-width="11"/>
+            <circle id="ringArc" cx="60" cy="60" r="48" fill="none"
+              stroke="var(--green)" stroke-width="11"
+              stroke-dasharray="301.59" stroke-dashoffset="301.59"
+              stroke-linecap="round" transform="rotate(-90 60 60)"
+              style="transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)"/>
+          </svg>
+          <div class="ring-inner">
+            <div class="ring-pct" id="ringPct">0%</div>
+            <div class="ring-lbl">Margin</div>
+          </div>
+        </div>
+      </div>
+      <div id="plRows"></div>
+    </div>
+  </div>
+
+  <!-- NET PROFIT TREND -->
+  <div class="line-card">
+    <div class="card-title">Net Profit Trend (Asli Bachat)</div>
+    <div class="card-sub">Saare mahino ka net profit — monthly progression</div>
+    <canvas id="lineChart" height="90"></canvas>
+  </div>
+
+</div>
+<footer>LIQVIGREEN Financial Dashboard &nbsp;·&nbsp; Live via Google Sheets &nbsp;·&nbsp; Confidential &nbsp;·&nbsp; Fueling Sustainability</footer>
+
+<script>
+// ════════════════════════════════════════════
+//  ⚙️  SIRF YEH URL CHANGE KARO agar naya
+//      Apps Script deploy karo kabhi
+// ════════════════════════════════════════════
+const API_URL = "https://script.google.com/macros/s/AKfycbwOlsi7VyKL9nd8_oQSUD1Bzi7TTmx5wMRAg2K9XejE7gC5swKJq1TLlsHaeKFgvWKL/exec";
+
+// Expense categories exactly as in Sheet 2 column headers (row 3)
+// Order: B, C, D, E, F, G, H, I, J, K, L, M, N, O  (last col = TOTAL skipped)
+const EXP_CATS = [
+  "RM Cost",
+  "Inward Freight (BHADA)",
+  "Kharcha in Cash (In Plant)",
+  "Plant Running Maintenance",
+  "Electricity/Power Cost",
+  "Salary (Labours & Staff)",
+  "Plant Rent",
+  "Office Rent",
+  "D.G Rent",
+  "B.F.T Rent",
+  "EMI",
+  "Interest Cost - I",
+  "Interest Cost - II",
+  "Miscellaneous Expenses",
+  "Maintenance (Machines)"
+];
+const EXP_COLORS = ['#2ddb76','#4fc3f7','#f5c518','#ff5f5f','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#fbbf24','#e879f9','#2dd4bf','#f87171','#c084fc','#38bdf8'];
+
+// ── STATE ──
+let S = { months:[], revenue:[], oilQty:[], expenses:{}, netProfit:[], grossProfit:[], margin:[], activeIdx:0 };
+let barInst, donutInst, lineInst;
+
+// ── FETCH ──
+async function loadData(){
+  show('loader'); hide('main');
+  try {
+    const res  = await fetch(API_URL);
+    const json = await res.json();
+    parse(json);
+    document.getElementById('syncTime').textContent = 'Last sync: ' + new Date().toLocaleTimeString('en-IN');
+    hide('loader'); show('main');
+    renderAll();
+  } catch(e){
+    hide('loader');
+    showErr('❌ Data fetch nahi hua.<br>Reason: ' + e.message +
+      '<br><br><b>Fix:</b> Apps Script → Deploy → Manage → Edit → New Version → Deploy karo (Access: Anyone)');
+  }
+}
+
+// ── PARSE — exact structure aapki sheets ka ──
+function parse(json){
+  const sheetKeys = Object.keys(json);
+  // Find sheets by partial name match
+  const revKey  = sheetKeys.find(k => k.toLowerCase().includes('revenue') || k.toLowerCase().includes('sheet1')) || sheetKeys[0];
+  const expKey  = sheetKeys.find(k => k.toLowerCase().includes('expense') || k.toLowerCase().includes('kharcha') || k.toLowerCase().includes('sheet2')) || sheetKeys[1];
+  const plKey   = sheetKeys.find(k => k.toLowerCase().includes('profit') || k.toLowerCase().includes('loss') || k.toLowerCase().includes('sheet3')) || sheetKeys[2];
+
+  parseRevenue(json[revKey]  || []);
+  parseExpenses(json[expKey] || []);
+  parsePL(json[plKey]        || []);
+}
+
+// Sheet 1: Row 1-3 = logo/blank, Row 4 = "REVENUE SECTION", Row 5 = headers, Row 6+ = data
+// Col A=Month, B=Oil Qty, C=Gross Revenue
+function parseRevenue(rows){
+  S.months=[]; S.revenue=[]; S.oilQty=[];
+  for(let r=0;r<rows.length;r++){
+    const row = rows[r];
+    const a   = String(row[0]||'').trim();
+    const c   = pNum(row[2]);  // Column C = Gross Revenue
+    const b   = String(row[1]||'').trim(); // Column B = qty
+    // Skip header/empty rows — only take rows where col C is a positive number
+    if(c > 0 && a && !a.toLowerCase().includes('month') && !a.toLowerCase().includes('revenue')){
+      S.months.push(a);
+      S.revenue.push(c);
+      S.oilQty.push(b);
+    }
+  }
+  S.activeIdx = Math.max(0, S.months.length - 1);
+}
+
+// Sheet 2: Row 1=blank, Row 2=blank, Row 3=headers, Row 4=data
+// Col A=Month, B..N = expense categories, last col = TOTAL EXPENSE
+function parseExpenses(rows){
+  S.expenses = {};
+  EXP_CATS.forEach(c => S.expenses[c] = Array(S.months.length).fill(0));
+
+  // Find header row (contains "MONTH" or "RM" etc.)
+  let hRow = -1;
+  for(let r=0;r<rows.length;r++){
+    const first = String(rows[r][0]||'').toLowerCase();
+    const sec   = String(rows[r][1]||'').toLowerCase();
+    if(first.includes('month') || sec.includes('rm') || sec.includes('cost')) { hRow=r; break; }
+  }
+  if(hRow < 0) hRow = 2; // fallback = row index 2 (row 3)
+
+  // Data rows start after header
+  for(let r=hRow+1; r<rows.length; r++){
+    const row     = rows[r];
+    const rowMonth = String(row[0]||'').trim();
+    if(!rowMonth) continue;
+
+    // Match to S.months
+    const mIdx = S.months.findIndex(m =>
+      m.toLowerCase().replace(/\s/g,'').includes(rowMonth.toLowerCase().replace(/\s/g,'')) ||
+      rowMonth.toLowerCase().replace(/\s/g,'').includes(m.toLowerCase().replace(/\s/g,''))
+    );
+    if(mIdx < 0) continue;
+
+    // Columns B onwards = expense values (col index 1, 2, 3 … up to EXP_CATS.length)
+    for(let c=0; c<EXP_CATS.length; c++){
+      const val = pNum(row[c+1]);
+      if(val > 0) S.expenses[EXP_CATS[c]][mIdx] = val;
+    }
+  }
+}
+
+// Sheet 3: Row 4=title, Row 5=headers (Month|Gross Profit|Net Profit|Margin%), Row 6+=data
+function parsePL(rows){
+  S.grossProfit = Array(S.months.length).fill(0);
+  S.netProfit   = Array(S.months.length).fill(0);
+  S.margin      = Array(S.months.length).fill(0);
+
+  let hRow = -1;
+  for(let r=0;r<rows.length;r++){
+    const cells = rows[r].map(c=>String(c||'').toLowerCase());
+    if(cells.some(c=>c.includes('gross') || c.includes('net profit') || c.includes('margin'))) { hRow=r; break; }
+  }
+  if(hRow < 0) hRow = 4;
+
+  for(let r=hRow+1; r<rows.length; r++){
+    const row      = rows[r];
+    const rowMonth = String(row[0]||'').trim();
+    if(!rowMonth) continue;
+    const mIdx = S.months.findIndex(m =>
+      m.toLowerCase().replace(/\s/g,'').includes(rowMonth.toLowerCase().replace(/\s/g,'')) ||
+      rowMonth.toLowerCase().replace(/\s/g,'').includes(m.toLowerCase().replace(/\s/g,''))
+    );
+    if(mIdx < 0) continue;
+    S.grossProfit[mIdx] = pNum(row[1]);
+    S.netProfit[mIdx]   = pNum(row[2]);
+    const marg          = pNum(row[3]);
+    S.margin[mIdx]      = marg > 1 ? marg : marg * 100; // handle both 82.45 and 0.8245
+  }
+}
+
+// ── HELPERS ──
+function pNum(v){
+  if(typeof v === 'number') return v;
+  return parseFloat(String(v||'').replace(/[₹,\s%]/g,'').replace(/[^0-9.-]/g,'')) || 0;
+}
+function totalExp(i){ return Object.values(S.expenses).reduce((s,a)=>s+(a[i]||0),0); }
+function calcNet(i){ return S.netProfit[i] || (S.revenue[i] - totalExp(i)); }
+function calcMargin(i){
+  if(S.margin[i]) return S.margin[i];
+  return S.revenue[i] ? (calcNet(i)/S.revenue[i]*100) : 0;
+}
+function fmt(n){
+  if(isNaN(n)||n===undefined) return '—';
+  const s = n<0?'-':'', a=Math.abs(n);
+  if(a>=1e7) return s+'₹'+(a/1e7).toFixed(2)+' Cr';
+  if(a>=1e5) return s+'₹'+(a/1e5).toFixed(2)+' L';
+  if(a>=1e3) return s+'₹'+(a/1e3).toFixed(1)+'K';
+  return s+'₹'+a.toLocaleString('en-IN');
+}
+
+// ── RENDER ──
+function renderAll(){
+  buildTabs(); buildKPIs(); buildExpTable(); buildPL();
+  buildBar(); buildDonut(); buildLine();
+}
+function setMonth(i){ S.activeIdx=i; buildTabs(); buildKPIs(); buildExpTable(); buildPL(); updateDonut(); }
+
+// TABS
+function buildTabs(){
+  document.getElementById('tabs').innerHTML = S.months.map((m,i)=>
+    `<button class="mtab ${i===S.activeIdx?'active':''}" onclick="setMonth(${i})">${m}</button>`
+  ).join('');
+}
+
+// KPIs — 5 cards
+function buildKPIs(){
+  const i=S.activeIdx, p=i>0?i-1:null;
+  const rev=S.revenue[i]||0, exp=totalExp(i), net=calcNet(i), mar=calcMargin(i);
+  const gross=S.grossProfit[i]||rev;
+  const revChg = p!==null&&S.revenue[p] ? ((rev-S.revenue[p])/S.revenue[p]*100).toFixed(1) : null;
+  const netChg = p!==null&&calcNet(p)   ? ((net-calcNet(p))/calcNet(p)*100).toFixed(1)      : null;
+
+  const cards=[
+    {cls:'g',icon:'💰',lbl:'Gross Revenue',    val:fmt(rev),          chg:revChg, sub:'Total Gross Sale'},
+    {cls:'r',icon:'📤',lbl:'Total Expenses',   val:fmt(exp),          chg:null,   sub:EXP_CATS.length+' categories'},
+    {cls:'a',icon:'🏆',lbl:'Net Profit',        val:fmt(net),          chg:netChg, sub:'Asli Bachat'},
+    {cls:'b',icon:'🎯',lbl:'Profit Margin',     val:mar.toFixed(2)+'%',chg:null,   sub:'Of Gross Revenue'},
+    {cls:'p',icon:'🛢',lbl:'Oil Sold',           val:S.oilQty[i]||'—', chg:null,   sub:'Total Qty (Ltrs)'},
+  ];
+  document.getElementById('kpiGrid').innerHTML = cards.map((c,n)=>`
+    <div class="kpi ${c.cls}" style="animation-delay:${n*.07}s">
+      <div class="kpi-icon">${c.icon}</div>
+      <div class="kpi-lbl">${c.lbl}</div>
+      <div class="kpi-val">${c.val}</div>
+      <div class="kpi-sub">
+        ${c.chg!==null?`<span class="badge ${parseFloat(c.chg)>=0?'up':'dn'}">${parseFloat(c.chg)>=0?'▲':'▼'} ${Math.abs(c.chg)}%</span>`:''}
+        ${c.sub}
+      </div>
+    </div>`).join('');
+}
+
+// EXPENSE TABLE
+function buildExpTable(){
+  const i=S.activeIdx, tot=totalExp(i)||1;
+  document.getElementById('expCardSub').textContent = S.months[i] + ' — category-wise amounts';
+  const rows = EXP_CATS
+    .map((k,ci)=>({k,amt:S.expenses[k]?.[i]||0,color:EXP_COLORS[ci%EXP_COLORS.length]}))
+    .filter(r=>r.amt>0)
+    .sort((a,b)=>b.amt-a.amt);
+  document.getElementById('expBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td style="display:flex;align-items:center;gap:6px">
+        <span style="width:7px;height:7px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block"></span>${r.k}
+      </td>
+      <td>
+        <div class="bar-bg"><div class="bar-fg" style="width:${(r.amt/tot*100).toFixed(0)}%;background:${r.color}"></div></div>
+        ${fmt(r.amt)}
+      </td>
+      <td>${(r.amt/tot*100).toFixed(1)}%</td>
+    </tr>`).join('');
+}
+
+// P&L + RING
+function buildPL(){
+  const i=S.activeIdx;
+  const rev=S.revenue[i]||0, exp=totalExp(i), net=calcNet(i), mar=calcMargin(i);
+  const circ=301.59;
+  document.getElementById('ringArc').style.strokeDashoffset = circ*(1-Math.min(Math.max(mar,0),100)/100);
+  document.getElementById('ringPct').textContent = mar.toFixed(1)+'%';
+  document.getElementById('plRows').innerHTML=`
+    <div class="pl-row"><span class="pl-lbl">💵 Gross Revenue</span><span class="pl-val" style="color:var(--green)">${fmt(rev)}</span></div>
+    <div class="pl-row"><span class="pl-lbl">📤 Total Expenses</span><span class="pl-val" style="color:var(--red)">– ${fmt(exp)}</span></div>
+    <div class="pl-row pl-total"><span class="pl-lbl">🏆 Net Profit (Asli Bachat)</span><span class="pl-val">${fmt(net)}</span></div>`;
+}
+
+// ── CHARTS ──
+Chart.defaults.color='#5e8a6e';
+Chart.defaults.font.family='DM Sans';
+
+function buildBar(){
+  if(barInst) barInst.destroy();
+  const ctx=document.getElementById('barChart').getContext('2d');
+  barInst=new Chart(ctx,{
+    type:'bar',
+    data:{labels:S.months,datasets:[
+      {label:'Gross Revenue', data:S.revenue, backgroundColor:'rgba(45,219,118,.7)', borderRadius:5},
+      {label:'Total Expenses',data:S.months.map((_,i)=>totalExp(i)),backgroundColor:'rgba(255,95,95,.55)',borderRadius:5},
+    ]},
+    options:{responsive:true,
+      plugins:{legend:{labels:{color:'#5e8a6e',font:{size:12}}}},
+      scales:{
+        x:{grid:{color:'#1b2d22'},ticks:{color:'#5e8a6e'}},
+        y:{grid:{color:'#1b2d22'},ticks:{color:'#5e8a6e',callback:v=>v>=1e7?(v/1e7).toFixed(1)+'Cr':v>=1e5?(v/1e5).toFixed(0)+'L':v>=1e3?(v/1e3).toFixed(0)+'K':v}}
+      }
+    }
+  });
+}
+
+function getDonutData(){
+  const i=S.activeIdx;
+  const entries=EXP_CATS.map((k,ci)=>({k,v:S.expenses[k]?.[i]||0,c:EXP_COLORS[ci%EXP_COLORS.length]})).filter(e=>e.v>0);
+  return{labels:entries.map(e=>e.k),datasets:[{data:entries.map(e=>e.v),backgroundColor:entries.map(e=>e.c),borderWidth:2,borderColor:'#121f18',hoverOffset:6}]};
+}
+function buildDonut(){
+  if(donutInst) donutInst.destroy();
+  const ctx=document.getElementById('donutChart').getContext('2d');
+  donutInst=new Chart(ctx,{type:'doughnut',data:getDonutData(),options:{cutout:'68%',responsive:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+': '+fmt(c.raw)}}}}});
+  buildLegend(); updateDonutPct();
+}
+function updateDonut(){
+  if(!donutInst)return;
+  donutInst.data=getDonutData(); donutInst.update();
+  buildLegend(); updateDonutPct();
+}
+function updateDonutPct(){
+  const i=S.activeIdx, rev=S.revenue[i];
+  document.getElementById('donutPct').textContent = rev ? (totalExp(i)/rev*100).toFixed(1)+'%' : '—';
+}
+function buildLegend(){
+  const i=S.activeIdx, tot=totalExp(i)||1;
+  document.getElementById('legend').innerHTML=EXP_CATS
+    .map((k,ci)=>({k,v:S.expenses[k]?.[i]||0,c:EXP_COLORS[ci%EXP_COLORS.length]}))
+    .filter(e=>e.v>0)
+    .map(e=>`<div class="leg"><span class="leg-dot" style="background:${e.c}"></span>${e.k} ${(e.v/tot*100).toFixed(1)}%</div>`)
+    .join('');
+}
+
+function buildLine(){
+  if(lineInst) lineInst.destroy();
+  const ctx=document.getElementById('lineChart').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,180);
+  grad.addColorStop(0,'rgba(45,219,118,.15)'); grad.addColorStop(1,'rgba(45,219,118,0)');
+  lineInst=new Chart(ctx,{
+    type:'line',
+    data:{labels:S.months,datasets:[{
+      label:'Net Profit',data:S.months.map((_,i)=>calcNet(i)),
+      borderColor:'#2ddb76',backgroundColor:grad,fill:true,tension:.4,
+      pointRadius:5,pointBackgroundColor:'#2ddb76',pointBorderColor:'#07100d',pointBorderWidth:2
+    }]},
+    options:{responsive:true,
+      plugins:{legend:{labels:{color:'#5e8a6e',font:{size:12}}}},
+      scales:{
+        x:{grid:{color:'#1b2d22'},ticks:{color:'#5e8a6e'}},
+        y:{grid:{color:'#1b2d22'},ticks:{color:'#5e8a6e',callback:v=>v>=1e7?(v/1e7).toFixed(1)+'Cr':v>=1e5?(v/1e5).toFixed(0)+'L':v>=1e3?(v/1e3).toFixed(0)+'K':v}}
+      }
+    }
+  });
+}
+
+// ── UTILS ──
+function show(id){const e=document.getElementById(id);if(e){e.style.display=id==='main'?'flex':'flex'}}
+function hide(id){const e=document.getElementById(id);if(e)e.classList.add('hidden');if(id==='loader'){const l=document.getElementById('loader');if(l)l.classList.add('hidden')}}
+function showErr(msg){const e=document.getElementById('errorBox');e.style.display='block';e.innerHTML=msg}
+
+// Auto-refresh every 5 min
+loadData();
+setInterval(loadData, 5*60*1000);
+</script>
+</body>
+</html>
